@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>คำนวณรอบ-ฟีด งานกัด | Milling Speed &amp; Feed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#15161A;
+    --panel:#202126;
+    --field:#2B2C33;
+    --border:#3A3B42;
+    --amber:#F2A93B;
+    --amber-soft: rgba(242,169,59,.16);
+    --cyan:#62D6E8;
+    --cyan-glow: rgba(98,214,232,.35);
+    --text:#EDEDEF;
+    --text-dim:#93949B;
+    --warn:#E2654A;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse 600px 300px at 50% 0%, rgba(98,214,232,0.07), transparent 70%),
+      var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans Thai','IBM Plex Sans',system-ui,sans-serif;
+    display:flex;
+    justify-content:center;
+    padding:28px 16px 60px;
+  }
+  .app{width:100%;max-width:520px;}
+
+  .header{margin-bottom:20px;}
+  .eyebrow{font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);display:flex;align-items:center;gap:8px;}
+  .eyebrow::after{content:'';flex:1;height:1px;background:linear-gradient(to right,var(--amber-soft),transparent);}
+  .title{font-family:'Oswald',sans-serif;font-weight:600;font-size:26px;margin:8px 0 4px;color:#fff;}
+  .subtitle{font-size:13px;color:var(--text-dim);line-height:1.5;margin:0;}
+
+  .dro{
+    background:linear-gradient(180deg,#101114,#0B0C0E);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:22px 18px 16px;
+    margin-bottom:16px;
+    position:relative;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 8px 24px -8px rgba(0,0,0,.6);
+  }
+  .rivet{position:absolute;width:6px;height:6px;border-radius:50%;background:#45464d;box-shadow:inset 0 1px 1px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.03);}
+  .rivet.tl{top:10px;left:10px;} .rivet.tr{top:10px;right:10px;} .rivet.bl{bottom:10px;left:10px;} .rivet.br{bottom:10px;right:10px;}
+
+  .dro-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .dro-cell{text-align:center;}
+  .dro-label{font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;}
+  .dro-value{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:clamp(26px,8.5vw,38px);color:var(--cyan);text-shadow:0 0 14px var(--cyan-glow);line-height:1;font-variant-numeric:tabular-nums;transition:color .15s;}
+  .dro-unit{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--text-dim);margin-top:5px;}
+
+  .dro-sub{margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);display:flex;justify-content:center;gap:6px;align-items:baseline;font-size:12px;color:var(--text-dim);}
+  .dro-sub b{font-family:'IBM Plex Mono',monospace;color:var(--amber);font-weight:600;font-size:13px;}
+
+  .dro-warn{margin-top:10px;font-size:12px;color:var(--warn);text-align:center;display:none;line-height:1.5;}
+
+  .dro-a{padding:16px 18px 12px;}
+  .dro-a .dro-value{font-size:clamp(22px,7vw,30px);}
+  .dro-a .dro-sub{margin-top:8px;padding-top:0;border-top:none;font-size:11px;}
+
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px;}
+  .panel-title{font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:14px;}
+
+  .field{margin-bottom:18px;}
+  .field:last-child{margin-bottom:0;}
+  .field-label{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;color:var(--text);margin-bottom:7px;gap:8px;}
+  .field-label .hint{font-size:11px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;text-align:right;white-space:nowrap;}
+
+  select, input[type=number]{
+    width:100%;
+    background:var(--field);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:10px 12px;
+    color:var(--text);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:15px;
+    outline:none;
+  }
+  select{font-family:'IBM Plex Sans Thai',sans-serif;}
+  select:focus-visible, input:focus-visible, button:focus-visible, summary:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
+  select:focus, input:focus{border-color:var(--cyan);}
+
+  input[type=range]{width:100%;margin-top:10px;accent-color:var(--amber);}
+
+  .stepper{display:flex;align-items:center;gap:10px;}
+  .stepper button{
+    width:40px;height:40px;border-radius:8px;border:1px solid var(--border);background:var(--field);
+    color:var(--amber);font-size:18px;font-family:'Oswald',sans-serif;cursor:pointer;
+  }
+  .stepper button:active{background:var(--amber-soft);}
+  .stepper .stepper-value{flex:1;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:18px;}
+
+  details.ref{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:0 18px;margin-bottom:14px;}
+  details.ref summary{cursor:pointer;padding:14px 0;font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);list-style:none;display:flex;justify-content:space-between;align-items:center;}
+  details.ref summary::-webkit-details-marker{display:none;}
+  details.ref summary::after{content:'+';font-size:18px;color:var(--amber);}
+  details.ref[open] summary::after{content:'–';}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;}
+  table th, table td{padding:7px 4px;text-align:left;border-bottom:1px solid var(--border);}
+  table th{color:var(--text-dim);font-weight:500;font-family:'Oswald',sans-serif;letter-spacing:.04em;text-transform:uppercase;font-size:10px;}
+  table td{font-family:'IBM Plex Mono',monospace;color:var(--text);white-space:nowrap;}
+  table td.mat-name{font-family:'IBM Plex Sans Thai',sans-serif;color:var(--text-dim);white-space:normal;}
+
+  footer.note{font-size:11.5px;color:var(--text-dim);line-height:1.65;padding:0 4px;}
+  footer.note b{color:var(--text);}
+  footer.note p{margin:0 0 8px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="header">
+    <div class="eyebrow">Milling Speed &amp; Feed</div>
+    <h1 class="title">คำนวณรอบ-ฟีด งานกัด</h1>
+    <p class="subtitle">ใส่ค่าดอกกัดและวัสดุงาน เพื่อหารอบสปินเดิลและอัตราฟีดที่ใช้กัด</p>
+  </header>
+
+  <section class="dro">
+    <span class="rivet tl"></span><span class="rivet tr"></span><span class="rivet bl"></span><span class="rivet br"></span>
+    <div class="dro-grid">
+      <div class="dro-cell">
+        <div class="dro-label">ความเร็วรอบ</div>
+        <div class="dro-value" id="rpmValue">----</div>
+        <div class="dro-unit">รอบ/นาที · RPM</div>
+      </div>
+      <div class="dro-cell">
+        <div class="dro-label">อัตราฟีด</div>
+        <div class="dro-value" id="feedValue">----</div>
+        <div class="dro-unit">มม./นาที</div>
+      </div>
+    </div>
+    <div class="dro-sub">
+      <span>ฟีดต่อรอบ</span> <b id="feedRevValue">----</b> <span>มม./รอบ</span>
+    </div>
+    <div class="dro-warn" id="warnEl"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-title">วัสดุงาน</div>
+    <div class="field" style="margin-bottom:0;">
+      <select id="materialSelect"></select>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-title">พารามิเตอร์การตัด</div>
+
+    <div class="field">
+      <div class="field-label"><span>ความเร็วตัด (Vc)</span><span class="hint" id="vcHint">m/min</span></div>
+      <input type="number" id="vcInput" step="1" value="100" min="1">
+      <input type="range" id="vcRange" min="10" max="600" step="1" value="100">
+    </div>
+
+    <div class="field">
+      <div class="field-label"><span>เส้นผ่านศูนย์กลางดอกกัด (D)</span><span class="hint">mm</span></div>
+      <input type="number" id="diameterInput" step="0.1" value="10" min="0.1">
+    </div>
+
+    <div class="field">
+      <div class="field-label"><span>จำนวนคมตัด (Z)</span><span class="hint">ฟัน</span></div>
+      <div class="stepper">
+        <button type="button" id="zMinus" aria-label="ลดจำนวนคมตัด">−</button>
+        <div class="stepper-value" id="zValue">4</div>
+        <button type="button" id="zPlus" aria-label="เพิ่มจำนวนคมตัด">+</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label"><span>ฟีดต่อคมตัด (fz)</span><span class="hint" id="fzHint">mm/ฟัน</span></div>
+      <input type="number" id="fzInput" step="0.01" value="0.08" min="0.001">
+      <input type="range" id="fzRange" min="0.01" max="0.3" step="0.01" value="0.08">
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-title">แกนหมุน A · Rotary / 4th-Axis</div>
+    <div class="field" style="margin-bottom:0;">
+      <div class="field-label"><span>เส้นผ่านศูนย์กลางชิ้นงานที่ตำแหน่งกัด (Dw)</span><span class="hint">mm</span></div>
+      <input type="number" id="dwInput" step="0.1" value="50" min="0.1">
+    </div>
+  </section>
+
+  <section class="dro dro-a">
+    <div class="dro-grid">
+      <div class="dro-cell">
+        <div class="dro-label">ฟีดแกน A</div>
+        <div class="dro-value" id="aFeedValue">----</div>
+        <div class="dro-unit">องศา/นาที · deg/min</div>
+      </div>
+      <div class="dro-cell">
+        <div class="dro-label">รอบแกน A</div>
+        <div class="dro-value" id="aRpmValue">----</div>
+        <div class="dro-unit">รอบ/นาที</div>
+      </div>
+    </div>
+    <div class="dro-sub">
+      <span>แปลงจาก F = <b id="aSourceFeed">----</b> มม./นาที ที่ Dw นี้</span>
+    </div>
+  </section>
+
+  <details class="ref">
+    <summary>ตารางอ้างอิงความเร็วตัด (ดอกกัดคาร์ไบด์)</summary>
+    <table>
+      <thead><tr><th>วัสดุ</th><th>Vc m/min</th><th>fz mm/ฟัน</th></tr></thead>
+      <tbody id="refTableBody"></tbody>
+    </table>
+  </details>
+
+  <footer class="note">
+    <p><b>หมายเหตุ:</b> ค่า Vc และ fz ในตารางเป็น <b>ค่าเริ่มต้นโดยประมาณ</b> สำหรับดอกกัดคาร์ไบด์ทั่วไปเท่านั้น ควรปรับตามสภาพดอกกัด การเคลือบผิว ความแข็งแรงของจับยึดงาน และคำแนะนำของผู้ผลิตดอกกัดก่อนใช้งานจริง</p>
+    <p>สูตร: รอบ N = 1000 × Vc ÷ (π × D) &nbsp;|&nbsp; ฟีด F = N × Z × fz</p>
+    <p>แกนหมุน A: รอบแกน A = F ÷ (π × Dw) &nbsp;|&nbsp; ฟีดแกน A (deg/min) = รอบแกน A × 360</p>
+  </footer>
+
+</div>
+
+<script>
+  const MATERIALS = [
+    {name:'อะลูมิเนียม / อัลลอย', vcMin:150, vcMax:400, vcDef:250, fzMin:0.05, fzMax:0.15, fzDef:0.08},
+    {name:'ทองเหลือง / บรอนซ์',   vcMin:150, vcMax:300, vcDef:200, fzMin:0.05, fzMax:0.15, fzDef:0.08},
+    {name:'พลาสติก / อะคริลิก',   vcMin:200, vcMax:500, vcDef:300, fzMin:0.05, fzMax:0.20, fzDef:0.10},
+    {name:'เหล็กกล้าคาร์บอนต่ำ-กลาง (SS400, S45C)', vcMin:80, vcMax:150, vcDef:110, fzMin:0.05, fzMax:0.12, fzDef:0.07},
+    {name:'1.2344 / H13 Pre-hard (28-32 HRC)', vcMin:70, vcMax:120, vcDef:95, fzMin:0.04, fzMax:0.10, fzDef:0.06},
+    {name:'AISI 4140 Pre-hard (28-32 HRC)', vcMin:60, vcMax:110, vcDef:85, fzMin:0.04, fzMax:0.10, fzDef:0.06},
+    {name:'1.2379 / D2 Annealed (~230 HB)', vcMin:50, vcMax:90, vcDef:70, fzMin:0.03, fzMax:0.08, fzDef:0.05},
+    {name:'เหล็กหล่อ (Cast Iron)', vcMin:60, vcMax:120, vcDef:90, fzMin:0.08, fzMax:0.15, fzDef:0.10},
+    {name:'สแตนเลส (SUS304 / 316)', vcMin:50, vcMax:100, vcDef:70, fzMin:0.04, fzMax:0.10, fzDef:0.06},
+    {name:'เหล็กกล้าเครื่องมือ / ชุบแข็ง', vcMin:40, vcMax:80, vcDef:55, fzMin:0.03, fzMax:0.08, fzDef:0.05},
+    {name:'ไทเทเนียม / อัลลอย', vcMin:30, vcMax:60, vcDef:45, fzMin:0.03, fzMax:0.08, fzDef:0.05},
+  ];
+
+  const materialSelect = document.getElementById('materialSelect');
+  const vcInput = document.getElementById('vcInput');
+  const vcRange = document.getElementById('vcRange');
+  const vcHint  = document.getElementById('vcHint');
+  const fzInput = document.getElementById('fzInput');
+  const fzRange = document.getElementById('fzRange');
+  const fzHint  = document.getElementById('fzHint');
+  const diameterInput = document.getElementById('diameterInput');
+  const zValueEl = document.getElementById('zValue');
+  const rpmValue = document.getElementById('rpmValue');
+  const feedValue = document.getElementById('feedValue');
+  const feedRevValue = document.getElementById('feedRevValue');
+  const warnEl = document.getElementById('warnEl');
+  const refTableBody = document.getElementById('refTableBody');
+  const dwInput = document.getElementById('dwInput');
+  const aFeedValue = document.getElementById('aFeedValue');
+  const aRpmValue = document.getElementById('aRpmValue');
+  const aSourceFeed = document.getElementById('aSourceFeed');
+
+  let zVal = 4;
+
+  // populate material dropdown
+  const placeholder = document.createElement('option');
+  placeholder.value = '-1';
+  placeholder.textContent = '-- เลือกวัสดุ (หรือกำหนดเอง) --';
+  materialSelect.appendChild(placeholder);
+  MATERIALS.forEach((m, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = m.name;
+    materialSelect.appendChild(opt);
+  });
+
+  // populate reference table
+  MATERIALS.forEach(m => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td class="mat-name">' + m.name + '</td>' +
+                   '<td>' + m.vcMin + '–' + m.vcMax + '</td>' +
+                   '<td>' + m.fzMin.toFixed(2) + '–' + m.fzMax.toFixed(2) + '</td>';
+    refTableBody.appendChild(tr);
+  });
+
+  materialSelect.addEventListener('change', () => {
+    const idx = parseInt(materialSelect.value, 10);
+    if (idx >= 0) {
+      const m = MATERIALS[idx];
+      vcRange.min = m.vcMin; vcRange.max = m.vcMax; vcRange.value = m.vcDef; vcInput.value = m.vcDef;
+      fzRange.min = m.fzMin; fzRange.max = m.fzMax; fzRange.step = 0.01; fzRange.value = m.fzDef; fzInput.value = m.fzDef;
+      vcHint.textContent = 'm/min · แนะนำ ' + m.vcMin + '–' + m.vcMax;
+      fzHint.textContent = 'mm/ฟัน · แนะนำ ' + m.fzMin.toFixed(2) + '–' + m.fzMax.toFixed(2);
+    } else {
+      vcRange.min = 10; vcRange.max = 600;
+      fzRange.min = 0.01; fzRange.max = 0.3;
+      vcHint.textContent = 'm/min';
+      fzHint.textContent = 'mm/ฟัน';
+    }
+    calculate();
+  });
+
+  vcRange.addEventListener('input', () => { vcInput.value = vcRange.value; calculate(); });
+  vcInput.addEventListener('input', () => {
+    const v = parseFloat(vcInput.value);
+    if (!isNaN(v)) {
+      const min = parseFloat(vcRange.min), max = parseFloat(vcRange.max);
+      if (v >= min && v <= max) vcRange.value = v;
+    }
+    calculate();
+  });
+
+  fzRange.addEventListener('input', () => { fzInput.value = fzRange.value; calculate(); });
+  fzInput.addEventListener('input', () => {
+    const v = parseFloat(fzInput.value);
+    if (!isNaN(v)) {
+      const min = parseFloat(fzRange.min), max = parseFloat(fzRange.max);
+      if (v >= min && v <= max) fzRange.value = v;
+    }
+    calculate();
+  });
+
+  diameterInput.addEventListener('input', calculate);
+  dwInput.addEventListener('input', calculate);
+
+  document.getElementById('zMinus').addEventListener('click', () => {
+    if (zVal > 1) { zVal--; zValueEl.textContent = zVal; calculate(); }
+  });
+  document.getElementById('zPlus').addEventListener('click', () => {
+    if (zVal < 12) { zVal++; zValueEl.textContent = zVal; calculate(); }
+  });
+
+  function calculate() {
+    const D = parseFloat(diameterInput.value);
+    const Vc = parseFloat(vcInput.value);
+    const fz = parseFloat(fzInput.value);
+
+    let rpm = null, feed = null, feedRev = null;
+
+    if (D > 0 && Vc > 0) {
+      rpm = (1000 * Vc) / (Math.PI * D);
+    }
+    if (rpm && zVal > 0 && fz > 0) {
+      feedRev = zVal * fz;
+      feed = rpm * feedRev;
+    }
+
+    rpmValue.textContent = rpm ? Math.round(rpm).toLocaleString('en-US') : '----';
+    feedValue.textContent = feed ? Math.round(feed).toLocaleString('en-US') : '----';
+    feedRevValue.textContent = feedRev ? feedRev.toFixed(3) : '----';
+
+    const Dw = parseFloat(dwInput.value);
+    let aRpm = null, aDeg = null;
+    if (feed && Dw > 0) {
+      aRpm = feed / (Math.PI * Dw);
+      aDeg = aRpm * 360;
+    }
+    aFeedValue.textContent = aDeg ? Math.round(aDeg).toLocaleString('en-US') : '----';
+    aRpmValue.textContent = aRpm ? aRpm.toFixed(2) : '----';
+    aSourceFeed.textContent = feed ? Math.round(feed).toLocaleString('en-US') : '----';
+
+    if (rpm && rpm > 20000) {
+      warnEl.style.display = 'block';
+      warnEl.textContent = '⚠ รอบที่คำนวณได้สูง (' + Math.round(rpm).toLocaleString('en-US') + ' รอบ/นาที) ตรวจสอบรอบสูงสุดของสปินเดิลเครื่องจักรก่อนใช้งาน';
+    } else {
+      warnEl.style.display = 'none';
+    }
+  }
+
+  calculate();
+</script>
+</body>
+</html>
